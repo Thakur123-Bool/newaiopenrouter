@@ -3,7 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
 import os
-import pdfplumber
+import pdfplumber   
 
 # Load environment variables
 load_dotenv()
