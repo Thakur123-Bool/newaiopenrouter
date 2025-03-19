@@ -3,8 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
 import os
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+import pdfplumber
 
 # Load environment variables
 load_dotenv()
@@ -38,22 +37,25 @@ def process_pdf(pdf_files):
 
             print(f"Processing PDF: {file_path}")
 
-            loader = PyMuPDFLoader(file_path)
-            data = loader.load()
+            with pdfplumber.open(file_path) as pdf:
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        extracted_text.append(text)
 
-            print(f"Extracted Data: {data}")
+                    # Extract tables
+                    tables = page.extract_tables()
+                    for table in tables:
+                        print(f"Table: {table}")
+                        extracted_text.append(str(table))
 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-            chunks = text_splitter.split_documents(data)
+            if not extracted_text:
+                return jsonify({"error": "No text extracted from the PDF. Please upload a valid PDF."}), 400
 
-            print(f"Chunks: {chunks}")
-
-            for chunk in chunks:
-                extracted_text.append(chunk.page_content)
+            print(f"Extracted Text: {extracted_text}")
 
         extracted_text = " ".join(extracted_text)
         print(f"Final Extracted Text: {extracted_text}")
-
         return True
     except Exception as e:
         print(f"Error during PDF processing: {str(e)}")
@@ -121,7 +123,7 @@ def ask_question():
         if not extracted_text:
             return jsonify({"error": "No text extracted from PDF. Please upload a valid PDF."}), 400
 
-        question = request.json.get('question', '').strip()
+        question = request.form.get('question', '').strip()
 
         if not question:
             return jsonify({"error": "Please provide a question."}), 400
