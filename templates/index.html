@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            color: #4A90E2;
+        }
+        label {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: block;
+        }
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4A90E2;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #357ABD;
+        }
+        .message {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload PDF and Ask a Question</h1>
+
+        <!-- Form for Uploading and Processing PDF -->
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label for="pdf_files">Upload PDF:</label>
+            <input type="file" id="pdf_files" name="pdf_files" accept="application/pdf" required>
+            <button type="button" onclick="uploadPDF()">Process PDF</button>
+        </form>
+
+        <!-- Form for Asking Questions -->
+        <form id="askForm" style="display: none;">
+            <label for="question">Question:</label>
+            <input type="text" id="question" name="question" required>
+            <button type="button" onclick="askQuestion()">Ask Question</button>
+        </form>
+
+        <!-- Message Display Area -->
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        // Function to upload and process the PDF
+        function uploadPDF() {
+            const formData = new FormData(document.getElementById('uploadForm'));
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    document.getElementById('message').innerText = data.message;
+                    document.getElementById('askForm').style.display = 'block'; // Show the question form
+                } else if (data.error) {
+                    document.getElementById('message').innerText = "Error: " + data.error;
+                }
+            })
+            .catch(error => {
+                document.getElementById('message').innerText = "Error: " + error.message;
+            });
+        }
+
+        // Function to ask a question
+        function askQuestion() {
+            const question = document.getElementById('question').value;
+            fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `question=${encodeURIComponent(question)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.answer) {
+                    document.getElementById('message').innerText = "Answer: " + data.answer;
+                } else if (data.error) {
+                    document.getElementById('message').innerText = "Error: " + data.error;
+                }
+            })
+            .catch(error => {
+                document.getElementById('message').innerText = "Error: " + error.message;
+            });
+        }
+    </script>
+</body>
+</html>
