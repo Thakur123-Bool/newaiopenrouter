@@ -31,6 +31,8 @@ def process_pdf(pdf_files):
     
     try:
         for pdf_file in pdf_files:
+            if not pdf_file.filename.endswith('.pdf'):
+                return jsonify({"error": "Invalid file type. Please upload a PDF."}), 400
             file_path = os.path.join('./uploads', pdf_file.filename)
             pdf_file.save(file_path)
 
@@ -39,22 +41,17 @@ def process_pdf(pdf_files):
             loader = PyMuPDFLoader(file_path)
             data = loader.load()
 
-            # Debug: Print the extracted data
             print(f"Extracted Data: {data}")
 
-            # Split text into chunks
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
             chunks = text_splitter.split_documents(data)
 
-            # Debug: Print the chunks
             print(f"Chunks: {chunks}")
 
             for chunk in chunks:
                 extracted_text.append(chunk.page_content)
 
-        extracted_text = " ".join(extracted_text)  # Combine text from all chunks
-
-        # Debug: Print the final extracted text
+        extracted_text = " ".join(extracted_text)
         print(f"Final Extracted Text: {extracted_text}")
 
         return True
@@ -79,12 +76,10 @@ def get_deepseek_response(question, context):
         "max_tokens": 300
     }
 
-    # Debug: Print the payload being sent to OpenRouter
     print(f"Payload to OpenRouter: {payload}")
 
     response = requests.post(API_URL, json=payload, headers=headers)
 
-    # Debug: Print the response from OpenRouter
     print(f"Response from OpenRouter: {response.json()}")
 
     if response.status_code == 200:
@@ -102,8 +97,8 @@ def index():
 def upload_pdf():
     global extracted_text
     try:
-        if 'pdf_files' not in request.files or request.files.getlist('pdf_files') == []:
-            return jsonify({"error": "No PDF files uploaded. Please upload a file and try again."}), 400
+        if 'pdf_files' not in request.files or not request.files.getlist('pdf_files'):
+            return jsonify({"error": "No PDF file uploaded. Please upload a file and try again."}), 400
 
         pdf_files = request.files.getlist('pdf_files')
 
@@ -123,15 +118,14 @@ def upload_pdf():
 def ask_question():
     global extracted_text
     try:
-        if extracted_text is None:
-            return jsonify({"error": "No PDF has been uploaded yet. Please upload a PDF first."}), 400
+        if not extracted_text:
+            return jsonify({"error": "No text extracted from PDF. Please upload a valid PDF."}), 400
 
-        question = request.form.get('question', '').strip()
+        question = request.json.get('question', '').strip()
 
         if not question:
             return jsonify({"error": "Please provide a question."}), 400
 
-        # Debug: Print the extracted text and question
         print(f"Extracted Text: {extracted_text}")
         print(f"Question: {question}")
 
