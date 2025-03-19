@@ -7,3 +7,5 @@ pdfplumber
 langchain-community
 pymupdf
 gunicorn
+transformers
+torch
