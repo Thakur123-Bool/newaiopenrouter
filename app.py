@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from dotenv import load_dotenv
 import requests
 import os
-import pdfplumber   
+import pdfplumber
+import uuid
 
 # Load environment variables
 load_dotenv()
@@ -11,6 +12,9 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
+
+# Set a secret key for session management
+app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 
 # Ensure directories exist
 os.makedirs('./uploads', exist_ok=True)
@@ -20,18 +24,15 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL_NAME = "deepseek/deepseek-r1"
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Global variable to store extracted text
-extracted_text = None
-
 # Function to process PDFs and extract text
 def process_pdf(pdf_files):
-    global extracted_text
     extracted_text = []
     
     try:
         for pdf_file in pdf_files:
             if not pdf_file.filename.endswith('.pdf'):
-                return jsonify({"error": "Invalid file type. Please upload a PDF."}), 400
+                return None, "Invalid file type. Please upload a PDF."
+
             file_path = os.path.join('./uploads', pdf_file.filename)
             pdf_file.save(file_path)
 
@@ -50,16 +51,14 @@ def process_pdf(pdf_files):
                         extracted_text.append(str(table))
 
             if not extracted_text:
-                return jsonify({"error": "No text extracted from the PDF. Please upload a valid PDF."}), 400
-
-            print(f"Extracted Text: {extracted_text}")
+                return None, "No text extracted from the PDF. Please upload a valid PDF."
 
         extracted_text = " ".join(extracted_text)
         print(f"Final Extracted Text: {extracted_text}")
-        return True
+        return extracted_text, None
     except Exception as e:
         print(f"Error during PDF processing: {str(e)}")
-        return False
+        return None, str(e)
 
 # Function to call OpenRouter API and generate an answer
 def get_deepseek_response(question, context):
@@ -97,18 +96,25 @@ def index():
 # API route to upload and process PDF
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
-    global extracted_text
     try:
         if 'pdf_files' not in request.files or not request.files.getlist('pdf_files'):
             return jsonify({"error": "No PDF file uploaded. Please upload a file and try again."}), 400
 
         pdf_files = request.files.getlist('pdf_files')
 
-        # Process the PDF
-        success = process_pdf(pdf_files)
+        # Generate a unique session ID for the user if it doesn't exist
+        if 'user_id' not in session:
+            session['user_id'] = str(uuid.uuid4())
 
-        if not success:
-            return jsonify({"error": "Failed to extract text from PDFs."}), 400
+        # Process the PDF
+        extracted_text, error = process_pdf(pdf_files)
+
+        if error:
+            return jsonify({"error": error}), 400
+
+        # Store the extracted text in the session
+        session['extracted_text'] = extracted_text
+        print("PDF uploaded and text extracted successfully.")
 
         return jsonify({"message": "PDF uploaded and processed successfully."})
 
@@ -118,16 +124,18 @@ def upload_pdf():
 # API route to ask questions based on the uploaded PDF
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    global extracted_text
     try:
-        if not extracted_text:
+        if 'extracted_text' not in session:
+            print("Error: No text extracted from PDF. Please upload a valid PDF.")
             return jsonify({"error": "No text extracted from PDF. Please upload a valid PDF."}), 400
 
         question = request.form.get('question', '').strip()
 
         if not question:
+            print("Error: No question provided.")
             return jsonify({"error": "Please provide a question."}), 400
 
+        extracted_text = session['extracted_text']
         print(f"Extracted Text: {extracted_text}")
         print(f"Question: {question}")
 
@@ -136,6 +144,7 @@ def ask_question():
         return jsonify({"answer": answer})
 
     except Exception as e:
+        print(f"Server Error: {str(e)}")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
 # Run the Flask app
