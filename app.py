@@ -23,7 +23,7 @@ os.makedirs('./static/images', exist_ok=True)
 
 # OpenRouter API Key and Model Name
 OPENROUTER_API_KEY = "OPENROUTER_API_KEY"  # Replace with your key
-MODEL_NAME = "qwen/qwen-32b-free"  # Updated model name
+MODEL_NAME = "deepseek/deepseek-r1"  # Updated model name
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Function to process PDFs and extract text, tables, and images
