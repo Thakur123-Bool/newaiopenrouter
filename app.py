@@ -364,6 +364,8 @@
 #     host = os.environ.get("HOST", "0.0.0.0")  # Use HOST from environment, default to 0.0.0.0
 #     app.run(host=host, port=port)
 
+
+
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 import requests
@@ -442,7 +444,7 @@ def process_pdf(pdf_files):
         print(f"Error during PDF processing: {str(e)}")
         return None, None, None, str(e)
 
-# Function to call OpenRouter API and generate an answer
+# Function to call OpenRouter API and generate an answer using only the PDF content
 def get_deepseek_response(question, context):
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -453,7 +455,7 @@ def get_deepseek_response(question, context):
         "model": MODEL_NAME,
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"Context: {context}\nQuestion: {question}\nAnswer:"}
+            {"role": "user", "content": f"Context (from uploaded PDFs): {context}\nQuestion: {question}\nAnswer:"}
         ],
         "temperature": 0.5,
         "max_tokens": 300
@@ -509,22 +511,23 @@ def upload_pdf():
 @app.route('/ask', methods=['POST'])
 def ask_question():
     try:
+        # Check if extracted text exists in the session (only extracted from the uploaded PDFs)
         if 'extracted_text' not in session:
-            print("Error: No text extracted from PDFs. Please upload valid PDFs.")
             return jsonify({"error": "No text extracted from PDFs. Please upload valid PDFs."}), 400
 
         question = request.form.get('question', '').strip()
 
         if not question:
-            print("Error: No question provided.")
             return jsonify({"error": "Please provide a question."}), 400
 
         extracted_text = session['extracted_text']
         extracted_tables = session.get('extracted_tables', [])
         extracted_images = session.get('extracted_images', [])
+
         print(f"Extracted Text: {extracted_text}")
         print(f"Question: {question}")
 
+        # Generate the response using only the extracted text from the uploaded PDFs
         answer = get_deepseek_response(question, extracted_text)
 
         # Prepare response with answer, tables, and images
