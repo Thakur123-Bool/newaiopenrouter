@@ -365,7 +365,6 @@
 #     app.run(host=host, port=port)
 
 
-
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 import requests
@@ -386,7 +385,7 @@ os.makedirs('./uploads', exist_ok=True)
 os.makedirs('./static/images', exist_ok=True)
 
 # OpenRouter API Key and Model Name
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")  # Fetch from environment variables
+OPENROUTER_API_KEY = "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"  # Replace with your API key
 MODEL_NAME = "deepseek/deepseek-r1"  # Updated model name
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
